@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/cover.jpg" alt="TOOLNET" width="100%">
+</p>
+
 # TOOLNET CLI
 
 TOOLNET CLI lets you interact with AI agents directly from your terminal to
