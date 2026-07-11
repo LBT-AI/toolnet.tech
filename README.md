@@ -17,6 +17,10 @@ until the task passes or a retry budget is exhausted.
 
 ## Các vai trò (Roles)
 
+<p align="center">
+  <img src="docs/roles.jpg" alt="Các vai trò COO / PM / DEV / QA" width="100%">
+</p>
+
 Pipeline chạy 4 vai trò AI, mỗi vai trò bị giới hạn quyền rõ ràng để tránh
 thiên vị và sai sót:
 
