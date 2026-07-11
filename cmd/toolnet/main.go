@@ -229,9 +229,22 @@ func runInteractive(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	runner, err := workflow.NewRunner(cfg)
-	if err != nil {
-		return err
+	// The pipeline clients are built lazily: on a fresh machine with no API
+	// keys configured, we still want to show the banner and start the
+	// session. A missing-credential error is reported when a task is run
+	// (or after `toolnet login`), not at startup.
+	var runner *workflow.Runner
+	buildRunner := func() error {
+		r, bErr := workflow.NewRunner(cfg)
+		if bErr != nil {
+			return bErr
+		}
+		runner = r
+		return nil
+	}
+	if err := buildRunner(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+		fmt.Fprintln(os.Stderr, "The banner and session still work; run `toolnet login --provider openai` or set api_key in your config to run tasks.")
 	}
 	reader := bufio.NewReader(os.Stdin)
 	brand.PrintBannerWithTagline("TOOLNET — multi-agent COO/PM/DEV/QA workflow")
@@ -252,6 +265,14 @@ func runInteractive(cmd *cobra.Command, args []string) error {
 		}
 		if task == "exit" || task == "quit" {
 			break
+		}
+		// Rebuild the runner on each task so credentials added via
+		// `toolnet login` take effect without restarting the session.
+		if runner == nil {
+			if bErr := buildRunner(); bErr != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", bErr)
+				continue
+			}
 		}
 		runTaskInline(runner, cfg, task)
 	}

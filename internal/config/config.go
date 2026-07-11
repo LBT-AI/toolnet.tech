@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/LBT-AI/toolnet.tech/internal/auth"
 	"gopkg.in/yaml.v3"
 )
 
@@ -113,18 +112,37 @@ func resolveEnvList(values []string) []string {
 }
 
 // LoadConfig reads the yaml file at `filename`. If filename is empty,
-// it defaults to $HOME/.lbt/config.yaml.
+// it defaults to $HOME/.lbt/config.yaml. When the default config file does
+// not exist yet, a starter config is written there so the CLI boots on a
+// fresh machine (API keys can be added later or via `toolnet login`).
 func LoadConfig(filename string) (*Config, error) {
+	useDefault := false
 	if filename == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return nil, fmt.Errorf("resolve home dir: %w", err)
 		}
 		filename = filepath.Join(home, ".lbt", "config.yaml")
+		useDefault = true
 	}
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("read config file %q: %w", filename, err)
+		if useDefault && os.IsNotExist(err) {
+			if mkErr := os.MkdirAll(filepath.Dir(filename), 0o755); mkErr != nil {
+				return nil, fmt.Errorf("create config dir: %w", mkErr)
+			}
+			def := DefaultConfig()
+			out, mErr := yaml.Marshal(def)
+			if mErr != nil {
+				return nil, fmt.Errorf("marshal default config: %w", mErr)
+			}
+			if wErr := os.WriteFile(filename, out, 0o600); wErr != nil {
+				return nil, fmt.Errorf("write default config %q: %w", filename, wErr)
+			}
+			data = out
+		} else {
+			return nil, fmt.Errorf("read config file %q: %w", filename, err)
+		}
 	}
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -141,6 +159,19 @@ func LoadConfig(filename string) (*Config, error) {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+// DefaultConfig returns a starter configuration with all four roles mapped to
+// OpenAI's API (gpt-4o) but no API keys set. Keys can be supplied via the
+// api_key/api_keys fields, ${ENV_VAR} placeholders, or `toolnet login`.
+func DefaultConfig() *Config {
+	return &Config{
+		COO:      RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1"}},
+		PM:       RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1"}},
+		DEV:      RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1"}},
+		QA:       RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1"}},
+		Workflow: WorkflowConfig{MaxRetries: 3, GitAutoBranch: true, TimeoutSeconds: 30},
+	}
 }
 
 // resolveRoleEnv resolves ${ENV_VAR} placeholders in the base account and
@@ -191,13 +222,12 @@ func (c *Config) Validate() error {
 			if agent.Endpoint == "" {
 				return fmt.Errorf("role %q account %d: missing endpoint", name, ai)
 			}
-			if len(agent.APIKeys) == 0 && (agent.APIKey == "" || envPlaceholder.MatchString(agent.APIKey)) {
-				// Allow api_key to be resolved later from stored OAuth
-				// credentials via `toolnet login`.
-				if !auth.HasCredentials(agent.Provider) {
-					return fmt.Errorf("role %q account %d: no api_key/api_keys set (set api_key/api_keys, or run `toolnet login --provider %s`)", name, ai, agent.Provider)
-				}
-			}
+			// api_key/api_keys are resolved at runtime from the inline
+			// field, ${ENV_VAR} placeholders, or stored OAuth credentials
+			// via `toolnet login`. We no longer hard-fail here so the CLI
+			// can boot and show its UI on a fresh machine; a missing key
+			// surfaces as a clear error only when a role actually calls
+			// the provider.
 		}
 	}
 	return nil
