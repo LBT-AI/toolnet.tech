@@ -1,0 +1,11 @@
+# Build artifacts
+/toolnet
+*.test
+*.out
+
+# Stray npm lockfile (this is a Go project)
+package-lock.json
+
+# Local secrets / env
+.env
+*.env

@@ -1,0 +1,36 @@
+# LBT multi-agent workflow configuration
+# API keys should be provided via environment variables, e.g.:
+# export LBT_COO_API_KEY=sk-xxx
+# export LBT_PM_API_KEY=sk-ant-xxx
+# export LBT_DEV_API_KEY=sk-deepseek-xxx
+# export LBT_QA_API_KEY=AIza-xxx
+
+coo:
+  provider: "openai"
+  model: "gpt-4o"
+  api_key: "${LBT_COO_API_KEY}"
+  endpoint: "https://api.openai.com/v1/chat/completions"
+
+pm:
+  provider: "anthropic"
+  model: "claude-3-5-sonnet-20241022"
+  api_key: "${LBT_PM_API_KEY}"
+  endpoint: "https://api.anthropic.com/v1/messages"
+
+dev:
+  provider: "deepseek"
+  model: "deepseek-coder"
+  api_key: "${LBT_DEV_API_KEY}"
+  endpoint: "https://api.deepseek.com/v1/chat/completions"
+
+qa:
+  provider: "google"
+  model: "gemini-1.5-pro"
+  api_key: "${LBT_QA_API_KEY}"
+  endpoint: "https://generativelanguage.googleapis.com/v1beta/models/"
+
+workflow:
+  max_retries: 3
+  strict_mode: false
+  git_auto_branch: true
+  timeout_seconds: 30
