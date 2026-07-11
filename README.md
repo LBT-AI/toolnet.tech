@@ -15,6 +15,22 @@ COO (plan) -> PM (audit/risk) -> COO (approve) -> DEV (implement) -> QA (verify)
 On a blocking QA failure, DEV revisits the code and QA re-verifies, looping
 until the task passes or a retry budget is exhausted.
 
+## Các vai trò (Roles)
+
+Pipeline chạy 4 vai trò AI, mỗi vai trò bị giới hạn quyền rõ ràng để tránh
+thiên vị và sai sót:
+
+| Vai trò | Bước | Chức năng |
+| --- | --- | --- |
+| **COO** (Chief Operating Officer) | `COO_ANALYZE` → `COO_APPROVE` | Nhận task, phân tích và chia nhỏ thành kế hoạch gồm **Scope** (cần làm), **Out-of-Scope** (không được đụng) và danh sách subtask ưu tiên. Sau khi có audit từ PM, COO duyệt bản **Approved Plan** cuối cùng để giao cho DEV. COO **không bao giờ viết code**. |
+| **PM** (Project Manager / Risk Auditor) | `PM_AUDIT` | Nhận kế hoạch từ COO, đánh giá **rủi ro** (dependency, breaking change, side-effect), đề xuất **Rollback Plan** cụ thể khi QA gặp lỗi nghiêm trọng, và chỉ ra các điểm scope mơ hồ cần COO làm rõ. PM **chỉ audit, không sửa code, không đổi scope**. |
+| **DEV** (Developer) | `DEV_IMPLEMENT` (+ `DEV` retry) | Thực thi code theo đúng **Approved Plan**: chỉ sửa code trong Scope, tuyệt đối không đụng Out-of-Scope, không tự ý refactor hay đổi UI/UX. Trả kết quả dưới dạng **code diff/patch**. Khi QA FAIL, DEV nhận diff cũ + kết quả QA và sửa **chính xác** các lỗi đó. |
+| **QA** (Quality Assurance) | `QA_VERIFY` | Độc lập hoàn toàn, **chỉ nhìn code diff trước/sau** (không biết mục đích ban đầu) để tránh bias. Trả về định dạng chuẩn: `STATUS: PASS/FAIL`, `SEVERITY: Critical/High/Medium/Low/None`, và `FINDINGS`. QA block (FAIL mức Critical/High) sẽ quay lại DEV. |
+
+Luồng kiểm soát: COO lập kế hoạch → PM soi rủi ro → COO duyệt → DEV code →
+QA kiểm tra → (nếu FAIL) DEV sửa → QA kiểm tra lại (lặp đến khi PASS hoặc hết
+ngân sách retry).
+
 ## Install
 
 ### macOS / Linux / WSL
