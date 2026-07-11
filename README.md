@@ -2,6 +2,13 @@
   <img src="docs/cover.jpg" alt="TOOLNET" width="100%">
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/LETAN%20MEDIA-brand-cyan" alt="LETAN MEDIA">
+  <img src="https://img.shields.io/badge/TOOLNET-CLI-blue" alt="TOOLNET CLI">
+  <img src="https://img.shields.io/badge/version-1.0.0-green" alt="version 1.0.0">
+  <img src="https://img.shields.io/badge/Go-1.22.2-00ADD8" alt="Go 1.22.2">
+</p>
+
 # TOOLNET CLI
 
 TOOLNET CLI lets you interact with AI agents directly from your terminal to
