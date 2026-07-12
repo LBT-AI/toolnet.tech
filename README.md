@@ -242,6 +242,17 @@ go build -o toolnet ./cmd/toolnet
 go build -ldflags "-X main.version=1.2.3" -o toolnet ./cmd/toolnet
 ```
 
+## Releases
+
+Release builds are produced automatically when a `v*` tag is pushed. Each
+release includes Linux and macOS binaries for AMD64/ARM64, a Windows AMD64
+binary, and SHA-256 checksums verified by the installer.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ## License
 
 See repository for details.

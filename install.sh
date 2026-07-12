@@ -19,8 +19,8 @@ INSTALL_DIR="${INSTALL_DIR:-}"
 VERSION="latest"
 FROM_SOURCE=0
 
-# Release base URL. Override with TOOLNET_RELEASE_BASE if you self-host.
-RELEASE_BASE="${TOOLNET_RELEASE_BASE:-https://toolnet.tech/releases}"
+# GitHub Releases is the canonical binary source. Override for a mirror.
+RELEASE_BASE="${TOOLNET_RELEASE_BASE:-https://github.com/${REPO}/releases}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -75,8 +75,11 @@ resolve_version() {
   if [[ "$VERSION" != "latest" ]]; then
     return
   fi
+  local latest_url="https://api.github.com/repos/${REPO}/releases/latest"
   if command -v curl >/dev/null 2>&1; then
-    VERSION="$(curl -fsS "${RELEASE_BASE}/latest")" || VERSION=""
+    VERSION="$(curl -fsSL "$latest_url" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)" || VERSION=""
+  elif command -v wget >/dev/null 2>&1; then
+    VERSION="$(wget -qO- "$latest_url" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)" || VERSION=""
   fi
   if [[ -z "$VERSION" ]]; then
     # Fall back to building from source.
@@ -108,20 +111,36 @@ install_from_source() {
 }
 
 install_from_release() {
-  local os arch url tmp
+  local os arch asset url checksum_url tmp checksums expected actual
   os="$(detect_os)"
   arch="$(detect_arch)"
-  url="${RELEASE_BASE}/${VERSION}/${BINARY}-${os}-${arch}"
+  asset="${BINARY}-${os}-${arch}"
+  url="${RELEASE_BASE}/download/${VERSION}/${asset}"
+  checksum_url="${RELEASE_BASE}/download/${VERSION}/checksums.txt"
   echo "Downloading $BINARY ${VERSION} (${os}/${arch})..."
   tmp="$(mktemp)"
+  checksums="$(mktemp)"
+  trap 'rm -f "$tmp" "$checksums"' EXIT
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$url" -o "$tmp" || err "download failed: $url"
+    curl -fsSL "$checksum_url" -o "$checksums" || err "checksum download failed"
   elif command -v wget >/dev/null 2>&1; then
     wget -qO "$tmp" "$url" || err "download failed: $url"
+    wget -qO "$checksums" "$checksum_url" || err "checksum download failed"
   else
     err "need curl or wget to download the release"
   fi
+  expected="$(awk -v name="$asset" '$2 == name {print $1}' "$checksums")"
+  [[ -n "$expected" ]] || err "no checksum found for $asset"
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual="$(sha256sum "$tmp" | awk '{print $1}')"
+  else
+    actual="$(shasum -a 256 "$tmp" | awk '{print $1}')"
+  fi
+  [[ "$actual" == "$expected" ]] || err "checksum verification failed for $asset"
   mv "$tmp" "$INSTALL_DIR/$BINARY"
+  trap - EXIT
+  rm -f "$checksums"
 }
 
 main() {
