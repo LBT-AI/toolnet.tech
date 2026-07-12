@@ -29,7 +29,6 @@ var (
 	flagBypass     bool
 	flagConfigPath string
 	flagNoGit      bool
-	flagMaxMode    bool
 	flagStrict     bool
 	flagProvider   string
 	flagPort       int
@@ -63,8 +62,8 @@ func main() {
 	runCmd.Flags().StringVar(&flagTask, "task", "", "Task description (required)")
 	runCmd.Flags().IntVar(&flagMaxRetries, "max-retries", 0, "Override max QA/DEV retries (0 = use config default)")
 	runCmd.Flags().BoolVar(&flagBypass, "bypass", false, "Skip manual approval prompts and run fully automatically")
-	runCmd.Flags().BoolVar(&flagMaxMode, "max-mode", false, "Enable max-mode: allow models to use full context/tools")
 	runCmd.Flags().BoolVar(&flagStrict, "strict", false, "Enable strict mode: stop on non-blocking QA failures for manual review")
+	runCmd.Flags().BoolVar(&flagNoGit, "no-git", false, "Disable git branch creation and automatic patch application")
 	_ = runCmd.MarkFlagRequired("task")
 
 	resumeCmd := &cobra.Command{
@@ -75,6 +74,7 @@ func main() {
 	resumeCmd.Flags().StringVar(&flagTaskID, "task-id", "", "Task ID of the session to resume (required)")
 	resumeCmd.Flags().BoolVar(&flagBypass, "bypass", false, "Skip manual approval prompts")
 	resumeCmd.Flags().BoolVar(&flagStrict, "strict", false, "Enable strict mode")
+	resumeCmd.Flags().BoolVar(&flagNoGit, "no-git", false, "Disable automatic patch application")
 	_ = resumeCmd.MarkFlagRequired("task-id")
 
 	loginCmd := &cobra.Command{
@@ -336,17 +336,17 @@ func runRun(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Task ID: %s\n", taskID)
 	fmt.Printf("Task: %s\n\n", flagTask)
 
+	runner, err := workflow.NewRunner(cfg)
+	if err != nil {
+		return fmt.Errorf("init workflow runner: %w", err)
+	}
+
 	if cfg.Workflow.GitAutoBranch && !flagNoGit {
 		if err := gitutil.AutoBranch(taskID); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not create git branch automatically: %v\n", err)
 		} else {
 			fmt.Printf("Created git branch task/%s\n\n", taskID)
 		}
-	}
-
-	runner, err := workflow.NewRunner(cfg)
-	if err != nil {
-		return fmt.Errorf("init workflow runner: %w", err)
 	}
 
 	runner.OnStep = func(step, output string) {
@@ -394,7 +394,14 @@ func applyFinalDiff(state *workflow.State, taskID string, cfg *config.Config, no
 		// for the user. This is not an error.
 		return nil
 	}
-	return gitutil.ApplyDiff(state.CodeDiff)
+	if err := gitutil.ApplyDiff(state.CodeDiff); err != nil {
+		path, saveErr := workflow.SavePatch(taskID, state.CodeDiff)
+		if saveErr != nil {
+			return fmt.Errorf("apply patch: %v; save fallback: %w", err, saveErr)
+		}
+		return fmt.Errorf("apply patch: %v (saved for manual use at %s)", err, path)
+	}
+	return nil
 }
 
 func runResume(cmd *cobra.Command, args []string) error {

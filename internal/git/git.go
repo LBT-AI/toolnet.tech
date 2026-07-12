@@ -85,7 +85,8 @@ func AutoBranch(taskID string) error {
 // the patch with `git apply --check` so a malformed or rejected hunk fails
 // fast with a clear error instead of partially modifying files.
 func ApplyDiff(diff string) error {
-	if strings.TrimSpace(diff) == "" {
+	diff = extractUnifiedDiff(diff)
+	if diff == "" {
 		return fmt.Errorf("empty diff")
 	}
 	cmd := exec.Command("git", "apply", "--check", "--whitespace=nowarn", "-")
@@ -99,6 +100,29 @@ func ApplyDiff(diff string) error {
 		return fmt.Errorf("git apply failed: %w (output: %s)", err, string(out))
 	}
 	return nil
+}
+
+func extractUnifiedDiff(raw string) string {
+	raw = strings.ReplaceAll(raw, "\r\n", "\n")
+	lines := strings.Split(raw, "\n")
+	start := -1
+	for i, line := range lines {
+		if strings.HasPrefix(line, "diff --git ") || (strings.HasPrefix(line, "--- ") && i+1 < len(lines) && strings.HasPrefix(lines[i+1], "+++ ")) {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return ""
+	}
+	end := len(lines)
+	for i := start; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "```" {
+			end = i
+			break
+		}
+	}
+	return strings.TrimSpace(strings.Join(lines[start:end], "\n")) + "\n"
 }
 
 // Rollback discards all uncommitted changes in the working tree. Intended

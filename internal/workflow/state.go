@@ -78,14 +78,14 @@ func sessionPath(taskID string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve home dir: %w", err)
 	}
-	dir := filepath.Join(home, ".lbt", "sessions")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	dir := filepath.Join(home, ".toolnet", "sessions")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("create session dir: %w", err)
 	}
 	return filepath.Join(dir, fmt.Sprintf("session-%s.json", taskID)), nil
 }
 
-// Save persists the state to ~/.lbt/sessions/session-<taskID>.json so a
+// Save persists the state to ~/.toolnet/sessions/session-<taskID>.json so a
 // crashed or interrupted run can be resumed with `toolnet resume`.
 func (s *State) Save() error {
 	path, err := sessionPath(s.TaskID)
@@ -96,7 +96,7 @@ func (s *State) Save() error {
 	if err != nil {
 		return fmt.Errorf("marshal state: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("write session file: %w", err)
 	}
 	return nil
@@ -104,6 +104,9 @@ func (s *State) Save() error {
 
 // LoadState reads a previously saved session back into memory.
 func LoadState(taskID string) (*State, error) {
+	if !safeTaskID.MatchString(taskID) {
+		return nil, fmt.Errorf("invalid task id %q", taskID)
+	}
 	path, err := sessionPath(taskID)
 	if err != nil {
 		return nil, err

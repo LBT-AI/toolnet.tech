@@ -90,10 +90,20 @@ install_from_source() {
     err "go is required to build from source (https://go.dev/dl/)"
   fi
   local out="$INSTALL_DIR/$BINARY"
-  if [[ -n "${TOOLNET_VERSION:-}" ]]; then
-    go build -o "$out" -ldflags "-X main.version=${TOOLNET_VERSION}" "./cmd/toolnet"
+  if [[ -f "go.mod" && -d "cmd/toolnet" ]]; then
+    if [[ -n "${TOOLNET_VERSION:-}" ]]; then
+      go build -o "$out" -ldflags "-X main.version=${TOOLNET_VERSION}" "./cmd/toolnet"
+    else
+      go build -o "$out" "./cmd/toolnet"
+    fi
   else
-    go build -o "$out" "./cmd/toolnet"
+    # curl .../install | bash runs outside a source checkout. Let Go fetch
+    # the public module directly and place the binary in the chosen directory.
+    local module_version="latest"
+    if [[ "$VERSION" != "latest" ]]; then
+      module_version="$VERSION"
+    fi
+    GOBIN="$INSTALL_DIR" go install "github.com/${REPO}/cmd/toolnet@${module_version}"
   fi
 }
 

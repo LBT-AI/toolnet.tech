@@ -2,7 +2,7 @@
 // browser-based authentication (e.g. OpenAI Codex, Antigravity, etc.).
 // It spins up a temporary local HTTP server on localhost:<port> to capture
 // the authorization code, then exchanges it for an access token and stores
-// it encrypted in ~/.lbt/credentials.json.
+// it encrypted in ~/.toolnet/credentials.json.
 package auth
 
 import (
@@ -37,21 +37,37 @@ type CredentialStore struct {
 	key  []byte
 }
 
-// NewCredentialStore opens or creates the store at ~/.lbt/credentials.json.
-// The encryption key is derived from a user-provided passphrase (or a default
-// environment variable LBT_CREDENTIAL_KEY). If empty, it uses a default derived key.
+// NewCredentialStore opens or creates the store at ~/.toolnet/credentials.json.
+// The encryption key is derived from TOOLNET_CREDENTIAL_KEY (the legacy
+// LBT_CREDENTIAL_KEY is also accepted), or generated once into a mode-0600 file.
 func NewCredentialStore() (*CredentialStore, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("resolve home dir: %w", err)
 	}
-	dir := filepath.Join(home, ".lbt")
+	dir := filepath.Join(home, ".toolnet")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, fmt.Errorf("create .lbt dir: %w", err)
+		return nil, fmt.Errorf("create .toolnet dir: %w", err)
 	}
-	passphrase := os.Getenv("LBT_CREDENTIAL_KEY")
+	passphrase := os.Getenv("TOOLNET_CREDENTIAL_KEY")
 	if passphrase == "" {
-		passphrase = "lbt-default-passphrase-change-me"
+		passphrase = os.Getenv("LBT_CREDENTIAL_KEY")
+	}
+	if passphrase == "" {
+		keyPath := filepath.Join(dir, "credential.key")
+		key, readErr := os.ReadFile(keyPath)
+		if os.IsNotExist(readErr) {
+			key = make([]byte, 32)
+			if _, err := io.ReadFull(rand.Reader, key); err != nil {
+				return nil, fmt.Errorf("generate credential key: %w", err)
+			}
+			if err := os.WriteFile(keyPath, key, 0o600); err != nil {
+				return nil, fmt.Errorf("write credential key: %w", err)
+			}
+		} else if readErr != nil {
+			return nil, fmt.Errorf("read credential key: %w", readErr)
+		}
+		passphrase = base64.RawStdEncoding.EncodeToString(key)
 	}
 	h := sha256.Sum256([]byte(passphrase))
 	return &CredentialStore{

@@ -84,10 +84,9 @@ type Config struct {
 
 var envPlaceholder = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 
-// resolveEnv replaces ${VAR_NAME} occurrences with the value of the
-// corresponding OS environment variable. If the variable is not set,
-// the placeholder is left untouched and the caller (Validate) will
-// catch the missing key later.
+// resolveEnv replaces ${VAR_NAME} occurrences with the corresponding OS
+// environment value. Unset placeholders are left for resolveRoleEnv to drop,
+// allowing stored OAuth credentials to be used instead of a literal token.
 func resolveEnv(value string) string {
 	return envPlaceholder.ReplaceAllStringFunc(value, func(match string) string {
 		name := envPlaceholder.FindStringSubmatch(match)[1]
@@ -112,7 +111,7 @@ func resolveEnvList(values []string) []string {
 }
 
 // LoadConfig reads the yaml file at `filename`. If filename is empty,
-// it defaults to $HOME/.lbt/config.yaml. When the default config file does
+// it defaults to $HOME/.toolnet/config.yaml. When the default config file does
 // not exist yet, a starter config is written there so the CLI boots on a
 // fresh machine (API keys can be added later or via `toolnet login`).
 func LoadConfig(filename string) (*Config, error) {
@@ -122,7 +121,7 @@ func LoadConfig(filename string) (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("resolve home dir: %w", err)
 		}
-		filename = filepath.Join(home, ".lbt", "config.yaml")
+		filename = filepath.Join(home, ".toolnet", "config.yaml")
 		useDefault = true
 	}
 	data, err := os.ReadFile(filename)
@@ -166,10 +165,10 @@ func LoadConfig(filename string) (*Config, error) {
 // api_key/api_keys fields, ${ENV_VAR} placeholders, or `toolnet login`.
 func DefaultConfig() *Config {
 	return &Config{
-		COO:      RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1"}},
-		PM:       RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1"}},
-		DEV:      RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1"}},
-		QA:       RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1"}},
+		COO:      RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1/chat/completions"}},
+		PM:       RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1/chat/completions"}},
+		DEV:      RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1/chat/completions"}},
+		QA:       RoleConfig{AgentConfig: AgentConfig{Provider: "openai", Model: "gpt-4o", Endpoint: "https://api.openai.com/v1/chat/completions"}},
 		Workflow: WorkflowConfig{MaxRetries: 3, GitAutoBranch: true, TimeoutSeconds: 30},
 	}
 }
@@ -178,9 +177,15 @@ func DefaultConfig() *Config {
 // every account of a role's pool.
 func resolveRoleEnv(r *RoleConfig) {
 	r.APIKey = resolveEnv(r.APIKey)
+	if envPlaceholder.MatchString(r.APIKey) {
+		r.APIKey = ""
+	}
 	r.APIKeys = resolveEnvList(r.APIKeys)
 	for i := range r.Pool {
 		r.Pool[i].APIKey = resolveEnv(r.Pool[i].APIKey)
+		if envPlaceholder.MatchString(r.Pool[i].APIKey) {
+			r.Pool[i].APIKey = ""
+		}
 		r.Pool[i].APIKeys = resolveEnvList(r.Pool[i].APIKeys)
 	}
 }

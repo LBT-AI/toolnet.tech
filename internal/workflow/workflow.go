@@ -68,6 +68,9 @@ func (r *Runner) report(step, output string) {
 // Run executes the full pipeline for a single task and returns the final
 // state (whether it ended in PASS, or stopped due to retries/errors).
 func (r *Runner) Run(ctx context.Context, s *State) error {
+	if s.CodeDiff != "" && strings.EqualFold(s.QAResult.Status, "PASS") {
+		return nil
+	}
 	// Resume logic: if we already have a saved state, skip completed steps
 	if s.COOPlan == "" {
 		// Step 1: COO analyzes and breaks down the task.

@@ -217,7 +217,7 @@ accounts**; they are added to the rotation pool (in addition to any
 | `TOOLNET_OAUTH_TOKEN_ENDPOINT_OPENAI`  | Token endpoint (openai has a default)   |
 | `TOOLNET_OAUTH_DEVICE_ENDPOINT_<PROVIDER>` | Device endpoint for other providers  |
 | `TOOLNET_OAUTH_TOKEN_ENDPOINT_<PROVIDER>`  | Token endpoint for other providers   |
-| `LBT_CREDENTIAL_KEY`                    | Passphrase for the credential store      |
+| `TOOLNET_CREDENTIAL_KEY`                | Optional passphrase for the credential store |
 
 ## Commands
 
@@ -229,6 +229,10 @@ accounts**; they are added to the rotation pool (in addition to any
 | `toolnet login`    | Authenticate with a provider via OAuth (`--provider`).          |
 | `toolnet config`   | Show config path, validation status, and account rotation.      |
 | `toolnet --version` | Print the CLI version.                                          |
+
+Use `--no-git` with `run` or `resume` to disable automatic branch creation
+and patch application. If an AI response is not a valid applicable patch,
+TOOLNET preserves it under `~/.toolnet/patches/` for manual review.
 
 ## Build from source
 

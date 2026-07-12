@@ -49,7 +49,7 @@ func devImplementPrompt() string {
 QUY TẮC BẮT BUỘC:
 - Chỉ được sửa/thêm code nằm trong mục Scope. TUYỆT ĐỐI không đụng vào phần Out-of-Scope.
 - KHÔNG được tự ý refactor code không liên quan, KHÔNG được tự ý đổi UI/UX ngoài yêu cầu.
-- Trả lời dưới dạng code diff/patch (định dạng unified diff nếu có thể), kèm giải thích ngắn gọn.`
+- Chỉ trả về một unified diff hoàn chỉnh, bắt đầu bằng "diff --git" hoặc "---"; không dùng Markdown code fence và không kèm giải thích.`
 }
 
 func devRetryPrompt(previousDiff string, qa QAResult) string {
@@ -63,7 +63,7 @@ Mức độ nghiêm trọng: %s
 Chi tiết lỗi: %s
 
 Nhiệm vụ: sửa lại code để khắc phục CHÍNH XÁC các lỗi QA đã nêu, KHÔNG thay đổi gì khác ngoài phạm vi sửa lỗi.
-Trả lời dưới dạng code diff/patch mới, kèm giải thích ngắn gọn.`, previousDiff, qa.Severity, qa.Findings)
+Trả về TOÀN BỘ unified diff cuối cùng (không phải diff gia tăng so với patch trước), bắt đầu bằng "diff --git" hoặc "---"; không dùng Markdown code fence và không kèm giải thích.`, previousDiff, qa.Severity, qa.Findings)
 }
 
 func qaVerifyPrompt() string {

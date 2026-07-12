@@ -1,6 +1,28 @@
 package workflow
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
+
+type countingClient struct{ calls int }
+
+func (c *countingClient) Call(context.Context, string, string) (string, error) {
+	c.calls++
+	return "unexpected", nil
+}
+
+func TestRunCompletedSessionIsIdempotent(t *testing.T) {
+	c := &countingClient{}
+	r := &Runner{coo: c, pm: c, dev: c, qa: c}
+	s := &State{CodeDiff: "diff --git a/a b/a", QAResult: QAResult{Status: "PASS"}}
+	if err := r.Run(context.Background(), s); err != nil {
+		t.Fatal(err)
+	}
+	if c.calls != 0 {
+		t.Fatalf("completed resume made %d model calls", c.calls)
+	}
+}
 
 func TestParseQAResponse_Pass(t *testing.T) {
 	raw := "STATUS: PASS\nSEVERITY: None\nFINDINGS: Không có vấn đề"

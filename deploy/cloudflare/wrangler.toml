@@ -1,0 +1,7 @@
+name = "toolnet-install"
+main = "worker.js"
+compatibility_date = "2026-07-11"
+
+routes = [
+  { pattern = "toolnet.tech/install", zone_name = "toolnet.tech" }
+]

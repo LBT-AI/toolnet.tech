@@ -8,6 +8,7 @@ import (
 )
 
 func TestCredentialStore_EncryptDecryptRoundtrip(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	cs, err := NewCredentialStore()
 	if err != nil {
 		t.Fatalf("NewCredentialStore: %v", err)
