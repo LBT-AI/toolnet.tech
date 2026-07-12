@@ -7,4 +7,5 @@ npx wrangler login
 npx wrangler deploy --config deploy/cloudflare/wrangler.toml
 ```
 
-The route serves a self-contained Go installer at `https://toolnet.tech/install`.
+The route securely proxies the version-controlled `install.sh` at
+`https://toolnet.tech/install` and caches it for five minutes.
